@@ -7,12 +7,25 @@ The mental model is OS-shaped: the LLM is compute, Postgres and Redis are memory
 and disk, agents are processes, Redis Pub/Sub is the bus, and Docker containers
 are per-agent sandboxes.
 
+GitHub repo: `Mycelium`. Python package import path: `mycelium.*`. Both forms
+are used intentionally.
+
+## What Works Today
+
+| Feature | Status |
+|---|---|
+| Echo agent end-to-end | Phase 1 |
+| Multi-agent peer review | Phase 2 planned |
+| Vector memory search | Phase 2 planned |
+| Sandbox Docker exec | Phase 2 planned |
+| Self-improvement / experiments | Phase 3 planned |
+
 ## Bootstrap Status
 
-This repository is Phase 0 only. It contains the directory architecture, kernel
-draft, message contract, database schema, Docker and CI scaffolding, and a
-minimal dashboard shell. Phase 1 will make the daemon, worker, and echo-agent
-flow runnable end to end.
+This repository is in Phase 1. The Docker stack boots Postgres, Redis, the
+kernel, the worker, and the dashboard; the canonical echo-agent flow runs end to
+end through the API, queue, worker, and database. Phase 2 adds multi-agent peer
+review, vector memory search, sandbox execution, and the live comms stream.
 
 ## Quickstart
 
@@ -20,19 +33,22 @@ flow runnable end to end.
 cd /home/dev/workspace/mycelium
 cp .env.example .env
 uv sync
-docker compose up -d db redis
-DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run alembic upgrade head
-DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run python -m mycelium.db.seed
-DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run python -m mycelium.core.daemon
-```
-
-In another terminal:
-
-```bash
-uv run arq mycelium.core.workers.arq_worker.WorkerSettings
+docker compose up -d --build
 ```
 
 The API health endpoint is available at `http://localhost:8000/health`.
+
+## Running The Echo Agent
+
+The echo agent is the canonical Phase 1 demo. It registers an agent, dispatches a
+task, waits for the worker to complete it, and verifies the persisted result.
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+make smoke
+open http://localhost:3000
+```
 
 ## License
 

@@ -4,6 +4,7 @@ import time
 from typing import Any, cast
 
 import pytest
+
 from mycelium.core.scheduler import Scheduler, TaskSpec
 
 
