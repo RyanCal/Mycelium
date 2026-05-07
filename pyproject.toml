@@ -63,7 +63,7 @@ packages = [
 "mycelium.sandbox" = "sandbox"
 
 [tool.setuptools.package-data]
-"mycelium.agents" = ["prompts/*.md"]
+"mycelium.agents" = ["catalog.toml", "prompts/*.md"]
 "mycelium.db" = ["migrations/script.py.mako", "migrations/versions/*.py"]
 "*" = ["py.typed"]
 
@@ -106,6 +106,9 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["mycelium"]
 
 [tool.mypy]
 python_version = "3.12"

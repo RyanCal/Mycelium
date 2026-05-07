@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from mycelium.agents.catalog import load_agent_catalog
 from mycelium.agents.spec import AgentSpec
 from mycelium.core.api.deps import get_kernel, require_admin_token
 from mycelium.core.kernel import Kernel
@@ -42,6 +43,13 @@ async def list_agents(kernel: Kernel = Depends(get_kernel)) -> list[dict[str, An
     """List agents."""
 
     return await kernel.list_agents()
+
+
+@router.get("/catalog")
+async def get_agent_catalog() -> dict[str, dict[str, Any]]:
+    """Return the operator-managed agent catalog."""
+
+    return load_agent_catalog().to_api()
 
 
 @router.get("/{agent_id}")

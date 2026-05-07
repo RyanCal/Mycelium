@@ -8,6 +8,9 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mycelium
     services:
       db:
         image: pgvector/pgvector:pg16
@@ -28,6 +31,8 @@ jobs:
           - 6379:6379
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: mycelium
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with:

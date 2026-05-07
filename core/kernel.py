@@ -32,7 +32,7 @@ from mycelium.core.context_budget import BudgetExceeded, ContextBudget
 from mycelium.core.exceptions import AgentNotFound, TaskNotFound
 from mycelium.core.scheduler import Scheduler, TaskSpec
 from mycelium.core.settings import Settings
-from mycelium.db.models import Agent, AgentStatus, CommsLog, Task, TaskState
+from mycelium.db.models import Agent, AgentConfigVersion, AgentStatus, CommsLog, Task, TaskState
 
 logger = logging.getLogger(__name__)
 
@@ -86,12 +86,24 @@ class Kernel:
             ).scalar_one_or_none()
 
             if existing:
+                config_changed = (
+                    existing.system_prompt != spec.system_prompt
+                    or existing.model != spec.model
+                    or existing.config_jsonb != spec.config
+                )
                 existing.system_prompt = spec.system_prompt
                 existing.model = spec.model
                 existing.config_jsonb = spec.config
                 existing.type = spec.type
                 existing.token_budget_daily = spec.token_budget_daily
                 agent_id = existing.id
+                if config_changed or existing.current_version_id is None:
+                    await self._write_agent_config_version(
+                        session,
+                        existing,
+                        reason="manual_edit" if config_changed else "registered",
+                        created_by="kernel",
+                    )
                 logger.info(
                     "agent.updated",
                     extra={"agent_id": str(agent_id), "agent_name": spec.name},
@@ -109,6 +121,13 @@ class Kernel:
                     tokens_used_today=0,
                 )
                 session.add(agent)
+                await session.flush()
+                await self._write_agent_config_version(
+                    session,
+                    agent,
+                    reason="registered",
+                    created_by="kernel",
+                )
                 agent_id = agent.id
                 logger.info(
                     "agent.registered",
@@ -158,6 +177,14 @@ class Kernel:
             if agent is None:
                 raise AgentNotFound(agent_id)
 
+            if agent.current_version_id is None:
+                await self._write_agent_config_version(
+                    session,
+                    agent,
+                    reason="registered",
+                    created_by="kernel",
+                )
+
             await self._check_context_budget(agent, task.estimated_tokens, session)
 
             scored = self._score_priority(priority, task)
@@ -165,6 +192,7 @@ class Kernel:
                 id=uuid4(),
                 agent_id=agent_id,
                 parent_task_id=task.parent_task_id,
+                config_version_id=agent.current_version_id,
                 priority=scored,
                 state=TaskState.queued,
                 payload_jsonb=task.payload,
@@ -398,6 +426,9 @@ class Kernel:
             "sandbox_container_id": agent.sandbox_container_id,
             "token_budget_daily": agent.token_budget_daily,
             "tokens_used_today": agent.tokens_used_today,
+            "current_version_id": (
+                str(agent.current_version_id) if agent.current_version_id else None
+            ),
             "last_heartbeat_at": self._iso(agent.last_heartbeat_at),
             "created_at": self._iso(agent.created_at),
             "updated_at": self._iso(agent.updated_at),
@@ -408,6 +439,7 @@ class Kernel:
             "id": str(task.id),
             "agent_id": str(task.agent_id),
             "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+            "config_version_id": str(task.config_version_id) if task.config_version_id else None,
             "priority": task.priority,
             "state": task.state.value,
             "payload_jsonb": task.payload_jsonb,
@@ -424,3 +456,35 @@ class Kernel:
 
     def _iso(self, value: datetime | None) -> str | None:
         return value.isoformat() if value is not None else None
+
+    async def _write_agent_config_version(
+        self,
+        session: AsyncSession,
+        agent: Agent,
+        *,
+        reason: str,
+        created_by: str,
+    ) -> AgentConfigVersion:
+        """Snapshot the mutable config that a task can later replay against."""
+
+        latest_version = (
+            await session.execute(
+                select(func.max(AgentConfigVersion.version)).where(
+                    AgentConfigVersion.agent_id == agent.id
+                )
+            )
+        ).scalar_one()
+        config_version = AgentConfigVersion(
+            id=uuid4(),
+            agent_id=agent.id,
+            version=(latest_version or 0) + 1,
+            system_prompt=agent.system_prompt,
+            model=agent.model,
+            config_jsonb=agent.config_jsonb,
+            reason=reason,
+            created_by=created_by,
+        )
+        session.add(config_version)
+        await session.flush()
+        agent.current_version_id = config_version.id
+        return config_version

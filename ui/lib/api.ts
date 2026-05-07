@@ -1,4 +1,4 @@
-import type { Agent, AgentSpec, Task, TaskSpec } from '@/lib/types';
+import type { Agent, AgentCatalog, AgentSpec, Task, TaskSpec } from '@/lib/types';
 
 export type HealthPayload = {
   status: string;
@@ -30,6 +30,10 @@ export async function fetchHealth(): Promise<HealthPayload> {
 
 export async function fetchAgents(): Promise<Agent[]> {
   return requestJson<Agent[]>('/api/v1/agents');
+}
+
+export async function fetchAgentCatalog(): Promise<AgentCatalog> {
+  return requestJson<AgentCatalog>('/api/v1/agents/catalog');
 }
 
 export async function fetchTasks(): Promise<Task[]> {

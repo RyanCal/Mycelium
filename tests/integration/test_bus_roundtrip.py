@@ -4,6 +4,7 @@ import asyncio
 from typing import Any
 
 import pytest
+
 from mycelium.bus.envelope import Envelope
 from mycelium.bus.subscriber import BusSubscriber
 
