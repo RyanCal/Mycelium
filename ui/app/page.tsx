@@ -1,18 +1,4 @@
-import { AgentCard } from '@/components/AgentCard';
-import { CommsStream } from '@/components/CommsStream';
-import { TaskFeed } from '@/components/TaskFeed';
-
-const agents = [
-  { name: 'echo-default', status: 'idle', type: 'echo', budget: '0 / unlimited' },
-  { name: 'researcher', status: 'planned', type: 'researcher', budget: 'Phase 2' },
-  { name: 'reviewer', status: 'planned', type: 'reviewer', budget: 'Phase 2' },
-];
-
-const tasks = [
-  { title: 'Bootstrap kernel scaffold', state: 'complete', priority: 80 },
-  { title: 'Echo worker flow', state: 'phase 1', priority: 60 },
-  { title: 'Cold memory search', state: 'phase 2', priority: 45 },
-];
+import { DashboardClient } from '@/components/DashboardClient';
 
 export default function DashboardPage() {
   return (
@@ -29,27 +15,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-5 px-5 py-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-normal text-ink/65">Agents</h2>
-            <span className="text-sm text-ink/60">{agents.length} registered views</span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {agents.map((agent) => (
-              <AgentCard key={agent.name} agent={agent} />
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <TaskFeed tasks={tasks} />
-          </div>
-        </section>
-
-        <aside>
-          <CommsStream />
-        </aside>
-      </div>
+      <DashboardClient />
     </main>
   );
 }

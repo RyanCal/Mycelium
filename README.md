@@ -21,9 +21,9 @@ cd /home/dev/workspace/mycelium
 cp .env.example .env
 uv sync
 docker compose up -d db redis
-uv run alembic upgrade head
-uv run python -m mycelium.db.seed
-uv run python -m mycelium.core.daemon
+DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run python -m mycelium.db.seed
+DATABASE_URL=postgresql+asyncpg://mycelium:mycelium@localhost:5433/mycelium uv run python -m mycelium.core.daemon
 ```
 
 In another terminal:

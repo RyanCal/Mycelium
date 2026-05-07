@@ -8,6 +8,24 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: mycelium
+          POSTGRES_PASSWORD: mycelium
+          POSTGRES_DB: mycelium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mycelium -d mycelium"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -17,4 +35,11 @@ jobs:
       - run: uv sync --locked --dev
       - run: uv run ruff check .
       - run: uv run mypy .
+      - run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://mycelium:mycelium@localhost:5432/mycelium
+          REDIS_URL: redis://localhost:6379/0
       - run: uv run pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://mycelium:mycelium@localhost:5432/mycelium
+          REDIS_URL: redis://localhost:6379/0

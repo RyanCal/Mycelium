@@ -1,15 +1,9 @@
 import type { StateCreator } from 'zustand';
-
-export type TaskSummary = {
-  id: string;
-  title: string;
-  state: string;
-  priority: number;
-};
+import type { Task } from '@/lib/types';
 
 export type TasksSlice = {
-  tasks: TaskSummary[];
-  setTasks: (tasks: TaskSummary[]) => void;
+  tasks: Task[];
+  setTasks: (tasks: Task[]) => void;
 };
 
 export const createTasksSlice: StateCreator<TasksSlice, [], [], TasksSlice> = (set) => ({

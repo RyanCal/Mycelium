@@ -29,7 +29,7 @@ from mycelium.bus.envelope import Envelope
 from mycelium.bus.publisher import BusPublisher
 from mycelium.bus.subscriber import BusSubscriber
 from mycelium.core.context_budget import BudgetExceeded, ContextBudget
-from mycelium.core.exceptions import AgentNotFound
+from mycelium.core.exceptions import AgentNotFound, TaskNotFound
 from mycelium.core.scheduler import Scheduler, TaskSpec
 from mycelium.core.settings import Settings
 from mycelium.db.models import Agent, AgentStatus, CommsLog, Task, TaskState
@@ -92,7 +92,10 @@ class Kernel:
                 existing.type = spec.type
                 existing.token_budget_daily = spec.token_budget_daily
                 agent_id = existing.id
-                logger.info("agent.updated", extra={"agent_id": str(agent_id), "name": spec.name})
+                logger.info(
+                    "agent.updated",
+                    extra={"agent_id": str(agent_id), "agent_name": spec.name},
+                )
             else:
                 agent = Agent(
                     id=uuid4(),
@@ -109,7 +112,7 @@ class Kernel:
                 agent_id = agent.id
                 logger.info(
                     "agent.registered",
-                    extra={"agent_id": str(agent_id), "name": spec.name},
+                    extra={"agent_id": str(agent_id), "agent_name": spec.name},
                 )
 
             await session.commit()
@@ -128,6 +131,24 @@ class Kernel:
             )
         )
         return agent_id
+
+    async def list_agents(self) -> list[dict[str, Any]]:
+        """Return API-ready agent summaries."""
+
+        async with self._sessionmaker() as session:
+            agents = (
+                await session.execute(select(Agent).order_by(Agent.created_at.asc()))
+            ).scalars()
+            return [self._serialize_agent(agent) for agent in agents]
+
+    async def get_agent(self, agent_id: UUID) -> dict[str, Any]:
+        """Return one API-ready agent detail."""
+
+        async with self._sessionmaker() as session:
+            agent = await session.get(Agent, agent_id)
+            if agent is None:
+                raise AgentNotFound(agent_id)
+            return self._serialize_agent(agent)
 
     async def dispatch_task(self, agent_id: UUID, task: TaskSpec, priority: int = 50) -> UUID:
         """Enqueue a task for an agent and return the persisted task id immediately."""
@@ -155,11 +176,51 @@ class Kernel:
             await session.refresh(db_task)
 
         await self._scheduler.enqueue(db_task.id, scored)
+        await self._publisher.publish(
+            Envelope(
+                from_agent=None,
+                to_agent=agent_id,
+                channel="kernel.events",
+                message_type="system",
+                payload={
+                    "event": "task.dispatched",
+                    "task_id": str(db_task.id),
+                    "agent_id": str(agent_id),
+                    "priority": scored,
+                },
+            )
+        )
         logger.info(
             "task.dispatched",
             extra={"task_id": str(db_task.id), "agent_id": str(agent_id), "priority": scored},
         )
         return db_task.id
+
+    async def list_tasks(
+        self,
+        *,
+        state: TaskState | None = None,
+        agent_id: UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return API-ready tasks filtered by optional state/agent."""
+
+        async with self._sessionmaker() as session:
+            stmt = select(Task).order_by(Task.created_at.desc())
+            if state is not None:
+                stmt = stmt.where(Task.state == state)
+            if agent_id is not None:
+                stmt = stmt.where(Task.agent_id == agent_id)
+            tasks = (await session.execute(stmt)).scalars()
+            return [self._serialize_task(task) for task in tasks]
+
+    async def get_task(self, task_id: UUID) -> dict[str, Any]:
+        """Return one API-ready task detail."""
+
+        async with self._sessionmaker() as session:
+            task = await session.get(Task, task_id)
+            if task is None:
+                raise TaskNotFound(task_id)
+            return self._serialize_task(task)
 
     async def log_comms(self, envelope: Envelope) -> None:
         """Persist an envelope to ``comms_log`` without publishing it."""
@@ -241,7 +302,8 @@ class Kernel:
         """Listen on kernel-level channels."""
 
         async for envelope in self._subscriber.subscribe(
-            ["kernel.commands", "kernel.events", "sandbox.*.results"]
+            ["kernel.commands", "kernel.events", "sandbox.*.results"],
+            stop=self._stop,
         ):
             if self._stop.is_set():
                 break
@@ -323,3 +385,42 @@ class Kernel:
         task_payload["parent_task_id"] = UUID(envelope.payload["parent_task_id"])
         task = TaskSpec(**task_payload)
         await self.dispatch_task(agent_id, task, priority=envelope.payload.get("priority", 60))
+
+    def _serialize_agent(self, agent: Agent) -> dict[str, Any]:
+        return {
+            "id": str(agent.id),
+            "name": agent.name,
+            "type": agent.type,
+            "status": agent.status.value,
+            "system_prompt": agent.system_prompt,
+            "model": agent.model,
+            "config_jsonb": agent.config_jsonb,
+            "sandbox_container_id": agent.sandbox_container_id,
+            "token_budget_daily": agent.token_budget_daily,
+            "tokens_used_today": agent.tokens_used_today,
+            "last_heartbeat_at": self._iso(agent.last_heartbeat_at),
+            "created_at": self._iso(agent.created_at),
+            "updated_at": self._iso(agent.updated_at),
+        }
+
+    def _serialize_task(self, task: Task) -> dict[str, Any]:
+        return {
+            "id": str(task.id),
+            "agent_id": str(task.agent_id),
+            "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+            "priority": task.priority,
+            "state": task.state.value,
+            "payload_jsonb": task.payload_jsonb,
+            "result_jsonb": task.result_jsonb,
+            "error_text": task.error_text,
+            "token_budget": task.token_budget,
+            "tokens_used": task.tokens_used,
+            "arq_job_id": task.arq_job_id,
+            "started_at": self._iso(task.started_at),
+            "completed_at": self._iso(task.completed_at),
+            "created_at": self._iso(task.created_at),
+            "updated_at": self._iso(task.updated_at),
+        }
+
+    def _iso(self, value: datetime | None) -> str | None:
+        return value.isoformat() if value is not None else None

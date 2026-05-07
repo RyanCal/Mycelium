@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator, Iterable
 from contextlib import suppress
 from typing import Any
@@ -17,7 +18,13 @@ class BusSubscriber:
     def __init__(self, redis: aioredis.Redis) -> None:
         self._redis = redis
 
-    async def subscribe(self, channels: Iterable[str]) -> AsyncGenerator[Envelope, None]:
+    async def subscribe(
+        self,
+        channels: Iterable[str],
+        *,
+        stop: asyncio.Event | None = None,
+        poll_timeout: float = 0.5,
+    ) -> AsyncGenerator[Envelope, None]:
         """Yield envelopes from exact channels and wildcard patterns."""
 
         exact = [channel for channel in channels if "*" not in channel]
@@ -29,7 +36,13 @@ class BusSubscriber:
             await pubsub.psubscribe(*patterns)
 
         try:
-            async for message in pubsub.listen():
+            while stop is None or not stop.is_set():
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=poll_timeout,
+                )
+                if message is None:
+                    continue
                 envelope = self._parse(message)
                 if envelope is None or envelope.is_expired():
                     continue

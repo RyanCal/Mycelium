@@ -1,15 +1,9 @@
 import type { StateCreator } from 'zustand';
-
-export type AgentSummary = {
-  id: string;
-  name: string;
-  status: string;
-  type: string;
-};
+import type { Agent } from '@/lib/types';
 
 export type AgentsSlice = {
-  agents: AgentSummary[];
-  setAgents: (agents: AgentSummary[]) => void;
+  agents: Agent[];
+  setAgents: (agents: Agent[]) => void;
 };
 
 export const createAgentsSlice: StateCreator<AgentsSlice, [], [], AgentsSlice> = (set) => ({

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app components lib store --max-warnings=0"
+    "lint": "eslint app components lib store --max-warnings=0",
+    "type-check": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "^15.1.7",

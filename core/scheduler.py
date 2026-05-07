@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
+import asyncio
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+import structlog
 from arq import ArqRedis
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from mycelium.db.models import Task, TaskState
@@ -71,12 +72,11 @@ class Scheduler:
             task = (await session.execute(stmt)).scalar_one_or_none()
             if task is None:
                 return None
-            task.state = TaskState.dispatched
-            await session.commit()
             task_id = task.id
             priority = task.priority
 
-        await self.enqueue(task_id, priority)
+        with structlog.contextvars.bound_contextvars(task_id=str(task_id)):
+            await self.enqueue(task_id, priority)
         return task_id
 
     async def complete_task(
@@ -101,7 +101,19 @@ class Scheduler:
             await session.commit()
 
     async def drain(self, timeout: float) -> None:
-        """Leave room for future in-flight tracking without blocking shutdown today."""
+        """Wait for dispatched or running work to finish until timeout expires."""
 
-        with suppress(TimeoutError):
-            return None
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout
+        while loop.time() < deadline:
+            async with self._sessionmaker() as session:
+                count = (
+                    await session.execute(
+                        select(func.count(Task.id)).where(
+                            Task.state.in_([TaskState.dispatched, TaskState.running])
+                        )
+                    )
+                ).scalar_one()
+            if count == 0:
+                return
+            await asyncio.sleep(min(0.5, max(0.0, deadline - loop.time())))

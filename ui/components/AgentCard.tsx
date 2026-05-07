@@ -1,10 +1,7 @@
+import type { Agent } from '@/lib/types';
+
 type AgentCardProps = {
-  agent: {
-    name: string;
-    status: string;
-    type: string;
-    budget: string;
-  };
+  agent: Agent;
 };
 
 export function AgentCard({ agent }: AgentCardProps) {
@@ -20,7 +17,8 @@ export function AgentCard({ agent }: AgentCardProps) {
         </span>
       </div>
       <div className="mt-4 text-sm text-ink/70">
-        <span className="font-medium text-ink">Budget</span> {agent.budget}
+        <span className="font-medium text-ink">Tokens</span> {agent.tokens_used_today}
+        {agent.token_budget_daily === null ? ' / unlimited' : ` / ${agent.token_budget_daily}`}
       </div>
     </article>
   );

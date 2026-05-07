@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from anthropic import AsyncAnthropic
 
+from mycelium.core.llm.provider import CompletionResult
 from mycelium.core.settings import Settings
 
 
@@ -24,7 +25,7 @@ class AnthropicProvider:
         self._model = settings.anthropic_model
         self._prompt_cache = settings.anthropic_prompt_cache
 
-    async def complete(self, messages: list[dict[str, Any]], *, system: str) -> str:
+    async def complete(self, messages: list[dict[str, Any]], *, system: str) -> CompletionResult:
         """Return a text completion."""
 
         system_param: str | list[dict[str, Any]]
@@ -41,10 +42,19 @@ class AnthropicProvider:
             system=cast(Any, system_param),
             messages=cast(Any, messages),
         )
-        return "".join(
+        text = "".join(
             str(getattr(block, "text", ""))
             for block in response.content
             if getattr(block, "type", None) == "text"
+        )
+        usage = response.usage
+        return CompletionResult(
+            text=text,
+            model=self._model,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+            cache_write_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
         )
 
     async def embed(self, texts: list[str]) -> list[list[float]]:

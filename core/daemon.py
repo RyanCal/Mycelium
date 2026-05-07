@@ -41,8 +41,11 @@ async def run() -> None:
             log_config=None,
         )
     )
-    install_signal_handlers(kernel)
-    await asyncio.gather(kernel.start_daemon(), server.serve())
+    install_signal_handlers(kernel, server)
+    results = await asyncio.gather(kernel.start_daemon(), server.serve(), return_exceptions=True)
+    for result in results:
+        if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
+            raise result
 
 
 def main() -> None:
