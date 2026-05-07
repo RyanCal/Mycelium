@@ -1,0 +1,115 @@
+[project]
+name = "mycelium"
+version = "0.1.0"
+description = "Agentic operating system kernel for autonomous business agents."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [{ name = "RyanCal" }]
+dependencies = [
+    "alembic>=1.13.3",
+    "anthropic>=0.46.0",
+    "arq>=0.26.3",
+    "asyncpg>=0.30.0",
+    "fastapi>=0.115.8",
+    "httpx>=0.28.1",
+    "pgvector>=0.3.6",
+    "pydantic>=2.10.6",
+    "pydantic-settings>=2.8.1",
+    "redis>=5.2.1",
+    "sqlalchemy[asyncio]>=2.0.38",
+    "structlog>=25.1.0",
+    "uvicorn[standard]>=0.34.0",
+    "voyageai>=0.3.2",
+]
+
+[project.scripts]
+mycelium-daemon = "mycelium.core.daemon:main"
+
+[build-system]
+requires = ["setuptools>=75.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "mycelium",
+    "mycelium.agents",
+    "mycelium.agents.builtin",
+    "mycelium.bus",
+    "mycelium.core",
+    "mycelium.core.api",
+    "mycelium.core.api.routers",
+    "mycelium.core.llm",
+    "mycelium.core.workers",
+    "mycelium.db",
+    "mycelium.db.repos",
+    "mycelium.memory",
+    "mycelium.sandbox",
+]
+
+[tool.setuptools.package-dir]
+"mycelium" = "."
+"mycelium.agents" = "agents"
+"mycelium.agents.builtin" = "agents/builtin"
+"mycelium.bus" = "bus"
+"mycelium.core" = "core"
+"mycelium.core.api" = "core/api"
+"mycelium.core.api.routers" = "core/api/routers"
+"mycelium.core.llm" = "core/llm"
+"mycelium.core.workers" = "core/workers"
+"mycelium.db" = "db"
+"mycelium.db.repos" = "db/repos"
+"mycelium.memory" = "memory"
+"mycelium.sandbox" = "sandbox"
+
+[tool.setuptools.package-data]
+"mycelium.agents" = ["prompts/*.md"]
+"mycelium.db" = ["migrations/script.py.mako", "migrations/versions/*.py"]
+"*" = ["py.typed"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.25.3",
+    "respx>=0.22.0",
+    "ruff>=0.9.6",
+    "testcontainers[postgres,redis]>=4.9.1",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = [".."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "D"]
+ignore = [
+    "B008",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D107",
+    "D202",
+    "UP017",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"db/migrations/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+exclude = ["db/migrations/versions"]

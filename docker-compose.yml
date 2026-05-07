@@ -1,0 +1,75 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: mycelium
+      POSTGRES_PASSWORD: mycelium
+      POSTGRES_DB: mycelium
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mycelium -d mycelium"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  kernel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent-data:/var/lib/mycelium/agents
+    command: ["uv", "run", "python", "-m", "mycelium.core.daemon"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agent-data:/var/lib/mycelium/agents
+    command: ["uv", "run", "arq", "mycelium.core.workers.arq_worker.WorkerSettings"]
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      MYCELIUM_API_BASE_URL: http://kernel:8000
+      MYCELIUM_ADMIN_TOKEN: ${MYCELIUM_ADMIN_TOKEN:-change-me}
+    depends_on:
+      - kernel
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  agent-data:

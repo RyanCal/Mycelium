@@ -1,0 +1,14 @@
+[Unit]
+Description=Mycelium Kernel
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/mycelium
+EnvironmentFile=/opt/mycelium/.env
+ExecStart=/usr/local/bin/uv run python -m mycelium.core.daemon
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[
+  {
+    "schema_version": 1,
+    "from_agent": null,
+    "to_agent": null,
+    "channel": "kernel.events",
+    "message_type": "system",
+    "payload": {
+      "event": "agent.registered",
+      "name": "echo-default"
+    },
+    "reply_to": null,
+    "correlation_id": null,
+    "priority": 50,
+    "ttl_seconds": null
+  }
+]
