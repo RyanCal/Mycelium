@@ -21,6 +21,8 @@ class AgentResult:
     data: dict[str, Any]
     tokens_used: int = 0
     llm_calls: list[CompletionResult] = field(default_factory=list)
+    self_score: float | None = None
+    reviewer_score: float | None = None
 
 
 @dataclass(frozen=True)

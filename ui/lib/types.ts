@@ -9,6 +9,7 @@ export type Agent = {
   sandbox_container_id: string | null;
   token_budget_daily: number | null;
   tokens_used_today: number;
+  current_version_id: string | null;
   last_heartbeat_at: string | null;
   created_at: string;
   updated_at: string;
@@ -18,6 +19,7 @@ export type Task = {
   id: string;
   agent_id: string;
   parent_task_id: string | null;
+  config_version_id: string | null;
   priority: number;
   state: string;
   payload_jsonb: Record<string, unknown>;
@@ -47,3 +49,15 @@ export type TaskSpec = {
   estimated_tokens?: number;
   parent_task_id?: string | null;
 };
+
+export type AgentCatalogEntry = {
+  description: string;
+  default_model: string;
+  daily_token_budget: number;
+  prompt_file: string;
+  network_access: boolean;
+  enabled: boolean;
+  cache_system_prompt: boolean;
+};
+
+export type AgentCatalog = Record<string, AgentCatalogEntry>;

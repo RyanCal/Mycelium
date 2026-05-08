@@ -63,7 +63,7 @@ packages = [
 "mycelium.sandbox" = "sandbox"
 
 [tool.setuptools.package-data]
-"mycelium.agents" = ["prompts/*.md"]
+"mycelium.agents" = ["catalog.toml", "prompts/*.md"]
 "mycelium.db" = ["migrations/script.py.mako", "migrations/versions/*.py"]
 "*" = ["py.typed"]
 

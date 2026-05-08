@@ -10,11 +10,13 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -90,8 +92,40 @@ class Agent(Base, TimestampMixin):
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    current_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_config_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     tasks: Mapped[list[Task]] = relationship(back_populates="agent", cascade="all, delete-orphan")
+
+
+class AgentConfigVersion(Base, TimestampMixin):
+    __tablename__ = "agent_config_versions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    config_jsonb: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
+    reason: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("agent_id", "version", name="uq_agent_config_versions_agent_version"),
+        Index("ix_agent_config_versions_agent_created", "agent_id", "created_at"),
+    )
 
 
 class Task(Base, TimestampMixin):
@@ -107,6 +141,12 @@ class Task(Base, TimestampMixin):
         UUID(as_uuid=True),
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=True,
+    )
+    config_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_config_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=50, insert_default=50)
     state: Mapped[TaskState] = mapped_column(
@@ -203,12 +243,36 @@ class Run(Base, TimestampMixin):
     __tablename__ = "runs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    experiment_id: Mapped[uuid.UUID] = mapped_column(
+    experiment_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("experiments.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
+    source_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    config_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_config_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    state: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="queued", insert_default="queued"
+    )
+    result_jsonb: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    error_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tokens_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, insert_default=0)
     baseline_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     candidate_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metrics_jsonb: Mapped[dict[str, Any]] = mapped_column(
@@ -216,6 +280,33 @@ class Run(Base, TimestampMixin):
         nullable=False,
         server_default=text("'{}'::jsonb"),
     )
+
+
+class TaskScore(Base, TimestampMixin):
+    __tablename__ = "task_scores"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    scorer_agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    score_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_jsonb: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    )
+
+    __table_args__ = (Index("ix_task_scores_task_kind", "task_id", "score_kind"),)
 
 
 class TokenLedger(Base):

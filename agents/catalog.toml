@@ -1,0 +1,52 @@
+# Single source of truth for agent type defaults.
+
+[echo]
+description = "Smoke-test agent. Echoes payload."
+default_model = "claude-haiku-4-5-20251001"
+daily_token_budget = 10_000
+prompt_file = "agents/prompts/system_base.md"
+network_access = false
+enabled = true
+
+[researcher]
+description = "Researches topics and writes findings to cold memory."
+default_model = "claude-opus-4-7"
+daily_token_budget = 200_000
+prompt_file = "agents/prompts/researcher.md"
+network_access = false
+enabled = false
+cache_system_prompt = true
+
+[coder]
+description = "Writes and executes Python in its sandbox."
+default_model = "claude-opus-4-7"
+daily_token_budget = 300_000
+prompt_file = "agents/prompts/coder.md"
+network_access = false
+enabled = false
+cache_system_prompt = true
+
+[reviewer]
+description = "Peer-reviews other agents' artifacts. Cheap and fast."
+default_model = "claude-haiku-4-5-20251001"
+daily_token_budget = 50_000
+prompt_file = "agents/prompts/reviewer.md"
+network_access = false
+enabled = false
+cache_system_prompt = true
+
+[fetcher]
+description = "The only agent type with network egress. Other agents request fetches via bus."
+default_model = "claude-haiku-4-5-20251001"
+daily_token_budget = 20_000
+prompt_file = "agents/prompts/fetcher.md"
+network_access = true
+enabled = false
+
+[shadow_debugger]
+description = "Watches a target agent and proposes config diffs as experiments."
+default_model = "claude-sonnet-4-6"
+daily_token_budget = 50_000
+prompt_file = "agents/prompts/shadow_debugger.md"
+network_access = false
+enabled = false
