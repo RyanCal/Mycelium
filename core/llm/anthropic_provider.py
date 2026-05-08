@@ -25,7 +25,13 @@ class AnthropicProvider:
         self._model = settings.anthropic_model
         self._prompt_cache = settings.anthropic_prompt_cache
 
-    async def complete(self, messages: list[dict[str, Any]], *, system: str) -> CompletionResult:
+    async def complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        system: str,
+        model: str | None = None,
+    ) -> CompletionResult:
         """Return a text completion."""
 
         system_param: str | list[dict[str, Any]]
@@ -37,7 +43,7 @@ class AnthropicProvider:
             system_param = system
 
         response = await self._client.messages.create(
-            model=self._model,
+            model=model or self._model,
             max_tokens=4096,
             system=cast(Any, system_param),
             messages=cast(Any, messages),
@@ -50,7 +56,7 @@ class AnthropicProvider:
         usage = response.usage
         return CompletionResult(
             text=text,
-            model=self._model,
+            model=model or self._model,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
             cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,

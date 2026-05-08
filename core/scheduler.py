@@ -22,6 +22,8 @@ class TaskSpec(BaseModel):
     payload: dict[str, Any]
     estimated_tokens: int = Field(default=4000, ge=0)
     parent_task_id: UUID | None = None
+    reply_to_agent_id: UUID | None = None
+    completion_correlation_id: UUID | None = None
     deadline: datetime | None = None
 
 

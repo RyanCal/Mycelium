@@ -23,6 +23,7 @@ class BusSubscriber:
         channels: Iterable[str],
         *,
         stop: asyncio.Event | None = None,
+        ready: asyncio.Event | None = None,
         poll_timeout: float = 0.5,
     ) -> AsyncGenerator[Envelope, None]:
         """Yield envelopes from exact channels and wildcard patterns."""
@@ -34,6 +35,8 @@ class BusSubscriber:
             await pubsub.subscribe(*exact)
         if patterns:
             await pubsub.psubscribe(*patterns)
+        if ready is not None:
+            ready.set()
 
         try:
             while stop is None or not stop.is_set():

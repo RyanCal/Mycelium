@@ -19,6 +19,8 @@ export type Task = {
   id: string;
   agent_id: string;
   parent_task_id: string | null;
+  reply_to_agent_id: string | null;
+  completion_correlation_id: string | null;
   config_version_id: string | null;
   priority: number;
   state: string;

@@ -13,6 +13,7 @@ from uuid import UUID
 from mycelium.agents.base import BaseAgent
 from mycelium.agents.builtin.coder import CoderAgent
 from mycelium.agents.builtin.echo import EchoAgent
+from mycelium.agents.builtin.fetcher import FetcherAgent
 from mycelium.agents.builtin.researcher import ResearcherAgent
 from mycelium.agents.builtin.reviewer import ReviewerAgent
 from mycelium.agents.builtin.shadow_debugger import ShadowDebuggerAgent
@@ -25,6 +26,7 @@ _REGISTRY: dict[str, type[BaseAgent]] = {
     "researcher": ResearcherAgent,
     "coder": CoderAgent,
     "reviewer": ReviewerAgent,
+    "fetcher": FetcherAgent,
     "shadow_debugger": ShadowDebuggerAgent,
 }
 

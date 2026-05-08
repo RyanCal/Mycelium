@@ -13,6 +13,8 @@ def test_task_spec_defaults() -> None:
 
     assert spec.estimated_tokens == 4000
     assert spec.parent_task_id is None
+    assert spec.reply_to_agent_id is None
+    assert spec.completion_correlation_id is None
 
 
 class _CountResult:

@@ -18,6 +18,7 @@ from mycelium.agents.base import AgentResult, BaseAgent
 from mycelium.agents.registry import create_agent, create_agent_from_values
 from mycelium.bus.envelope import Envelope
 from mycelium.bus.publisher import BusPublisher
+from mycelium.bus.subscriber import BusSubscriber
 from mycelium.core.llm.anthropic_provider import AnthropicProvider
 from mycelium.core.settings import Settings
 from mycelium.db.connection import get_engine
@@ -44,6 +45,7 @@ async def run_agent_task(
 
     sessionmaker: async_sessionmaker[AsyncSession] = ctx["sessionmaker"]
     bus: BusPublisher = ctx["bus"]
+    subscriber: BusSubscriber = ctx["subscriber"]
     llm: AnthropicProvider = ctx["llm"]
     async with sessionmaker() as session:
         task = (
@@ -64,6 +66,7 @@ async def run_agent_task(
                     session=session,
                     sessionmaker=sessionmaker,
                     bus=bus,
+                    subscriber=subscriber,
                     llm=llm,
                     task=task,
                     agent=agent,
@@ -75,6 +78,7 @@ async def run_agent_task(
                     session=session,
                     sessionmaker=sessionmaker,
                     bus=bus,
+                    subscriber=subscriber,
                     llm=llm,
                     task=task,
                     agent=agent,
@@ -102,6 +106,7 @@ async def _run_live_task(
     session: AsyncSession,
     sessionmaker: async_sessionmaker[AsyncSession],
     bus: BusPublisher,
+    subscriber: BusSubscriber,
     llm: AnthropicProvider,
     task: Task,
     agent: Agent,
@@ -128,7 +133,7 @@ async def _run_live_task(
     )
 
     impl = _create_impl(agent, config_version)
-    impl.bind(llm=llm, bus=bus, sessionmaker=sessionmaker)
+    impl.bind(llm=llm, bus=bus, subscriber=subscriber, sessionmaker=sessionmaker)
     try:
         result = await impl.run_step(task.payload_jsonb)
         token_total = _token_total(result)
@@ -163,6 +168,9 @@ async def _run_live_task(
                 },
             )
         )
+        reply = _completion_reply_envelope(task, agent)
+        if reply is not None:
+            await bus.publish(reply)
 
 
 async def _run_replay(
@@ -170,6 +178,7 @@ async def _run_replay(
     session: AsyncSession,
     sessionmaker: async_sessionmaker[AsyncSession],
     bus: BusPublisher,
+    subscriber: BusSubscriber,
     llm: AnthropicProvider,
     task: Task,
     agent: Agent,
@@ -187,7 +196,7 @@ async def _run_replay(
     await session.commit()
 
     impl = _create_impl(agent, config_version)
-    impl.bind(llm=llm, bus=bus, sessionmaker=sessionmaker)
+    impl.bind(llm=llm, bus=bus, subscriber=subscriber, sessionmaker=sessionmaker)
     try:
         result = await impl.run_step(task.payload_jsonb)
         await run_repo.complete(run, result=result.data, tokens_used=_token_total(result))
@@ -212,6 +221,29 @@ def _create_impl(agent: Agent, config_version: AgentConfigVersion | None) -> Bas
 
 def _token_total(result: AgentResult) -> int:
     return result.tokens_used or sum(call.total_tokens for call in result.llm_calls)
+
+
+def _completion_reply_envelope(task: Task, agent: Agent) -> Envelope | None:
+    """Build the direct reply a waiting parent agent consumes, if requested."""
+
+    if task.reply_to_agent_id is None or task.completion_correlation_id is None:
+        return None
+    return Envelope(
+        from_agent=agent.id,
+        to_agent=task.reply_to_agent_id,
+        channel=f"agent.{task.reply_to_agent_id}.inbox",
+        message_type="reply",
+        correlation_id=task.completion_correlation_id,
+        payload={
+            "event": "task.completed" if task.state == TaskState.complete else "task.failed",
+            "task_id": str(task.id),
+            "agent_id": str(agent.id),
+            "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+            "state": task.state.value,
+            "result": task.result_jsonb,
+            "error": task.error_text,
+        },
+    )
 
 
 def _add_token_ledger_rows(
@@ -274,6 +306,7 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["sessionmaker"] = async_sessionmaker(engine, expire_on_commit=False)
     ctx["redis"] = redis
     ctx["bus"] = BusPublisher(redis, sessionmaker=ctx["sessionmaker"])
+    ctx["subscriber"] = BusSubscriber(redis)
     ctx["llm"] = AnthropicProvider(settings)
 
 
