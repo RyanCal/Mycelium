@@ -1,11 +1,3 @@
-import { ThoughtBubble } from '@/components/ThoughtBubble';
-
-const events = [
-  { source: 'kernel.events', body: 'agent.registered echo-default' },
-  { source: 'kernel.events', body: 'scheduler waiting for queued work' },
-  { source: 'sandbox.results', body: 'Phase 2 execution stream placeholder' },
-];
-
 export function CommsStream() {
   return (
     <section>
@@ -14,10 +6,12 @@ export function CommsStream() {
         <span className="text-sm text-ink/60">Live tail in Phase 2</span>
       </div>
       <div className="rounded-md border border-black/10 bg-white p-4 shadow-sm">
-        <div className="space-y-3">
-          {events.map((event) => (
-            <ThoughtBubble key={`${event.source}-${event.body}`} source={event.source} body={event.body} />
-          ))}
+        <div className="rounded-md border border-dashed border-black/15 bg-mist p-4">
+          <div className="text-sm font-semibold text-ink">Phase 2 comms feed</div>
+          <p className="mt-2 text-sm leading-6 text-ink/65">
+            Live agent replies will appear here when the bus reply tracker is wired into the
+            dashboard stream.
+          </p>
         </div>
       </div>
     </section>
