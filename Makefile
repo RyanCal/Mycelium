@@ -15,7 +15,7 @@ lint:
 	cd ui && npm run lint
 
 type:
-	uv run mypy .
+	./scripts/mypy_check.sh
 	cd ui && npm run type-check
 
 fmt:
