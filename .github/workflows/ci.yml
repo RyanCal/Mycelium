@@ -39,7 +39,7 @@ jobs:
           python-version: "3.12"
       - run: uv sync --locked --dev
       - run: uv run ruff check .
-      - run: uv run mypy .
+      - run: ./scripts/mypy_check.sh
       - run: uv run alembic upgrade head
         env:
           DATABASE_URL: postgresql+asyncpg://mycelium:mycelium@localhost:5432/mycelium
