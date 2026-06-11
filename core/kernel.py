@@ -192,6 +192,8 @@ class Kernel:
                 id=uuid4(),
                 agent_id=agent_id,
                 parent_task_id=task.parent_task_id,
+                reply_to_agent_id=task.reply_to_agent_id,
+                completion_correlation_id=task.completion_correlation_id,
                 config_version_id=agent.current_version_id,
                 priority=scored,
                 state=TaskState.queued,
@@ -404,15 +406,28 @@ class Kernel:
         elif event == "subagent.requested":
             await self._spawn_subagent(envelope)
 
-    async def _spawn_subagent(self, envelope: Envelope) -> None:
+    async def _spawn_subagent(self, envelope: Envelope) -> tuple[UUID, UUID]:
         """Materialize a sub-agent triggered by another agent."""
 
         spec = AgentSpec(**envelope.payload["spec"])
         agent_id = await self.register_agent(spec)
         task_payload = dict(envelope.payload["task"])
-        task_payload["parent_task_id"] = UUID(envelope.payload["parent_task_id"])
+        parent_task_id = envelope.payload.get("parent_task_id")
+        if parent_task_id is not None and task_payload.get("parent_task_id") is None:
+            task_payload["parent_task_id"] = (
+                parent_task_id if isinstance(parent_task_id, UUID) else UUID(str(parent_task_id))
+            )
+        if envelope.from_agent is not None:
+            task_payload["reply_to_agent_id"] = envelope.from_agent
+        if envelope.correlation_id is not None:
+            task_payload["completion_correlation_id"] = envelope.correlation_id
         task = TaskSpec(**task_payload)
-        await self.dispatch_task(agent_id, task, priority=envelope.payload.get("priority", 60))
+        task_id = await self.dispatch_task(
+            agent_id,
+            task,
+            priority=envelope.payload.get("priority", 60),
+        )
+        return agent_id, task_id
 
     def _serialize_agent(self, agent: Agent) -> dict[str, Any]:
         return {
@@ -439,6 +454,10 @@ class Kernel:
             "id": str(task.id),
             "agent_id": str(task.agent_id),
             "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+            "reply_to_agent_id": str(task.reply_to_agent_id) if task.reply_to_agent_id else None,
+            "completion_correlation_id": (
+                str(task.completion_correlation_id) if task.completion_correlation_id else None
+            ),
             "config_version_id": str(task.config_version_id) if task.config_version_id else None,
             "priority": task.priority,
             "state": task.state.value,

@@ -27,7 +27,13 @@ class CompletionResult:
 class LLMProvider(Protocol):
     """Minimal provider interface agents depend on."""
 
-    async def complete(self, messages: list[dict[str, Any]], *, system: str) -> CompletionResult:
+    async def complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        system: str,
+        model: str | None = None,
+    ) -> CompletionResult:
         """Return a text completion for a chat-style prompt."""
 
     async def embed(self, texts: list[str]) -> list[list[float]]:

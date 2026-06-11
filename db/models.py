@@ -98,7 +98,11 @@ class Agent(Base, TimestampMixin):
         nullable=True,
     )
 
-    tasks: Mapped[list[Task]] = relationship(back_populates="agent", cascade="all, delete-orphan")
+    tasks: Mapped[list[Task]] = relationship(
+        back_populates="agent",
+        cascade="all, delete-orphan",
+        foreign_keys="Task.agent_id",
+    )
 
 
 class AgentConfigVersion(Base, TimestampMixin):
@@ -142,6 +146,15 @@ class Task(Base, TimestampMixin):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=True,
     )
+    reply_to_agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    completion_correlation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
     config_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("agent_config_versions.id", ondelete="SET NULL"),
@@ -164,11 +177,13 @@ class Task(Base, TimestampMixin):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    agent: Mapped[Agent] = relationship(back_populates="tasks")
+    agent: Mapped[Agent] = relationship(back_populates="tasks", foreign_keys=[agent_id])
     parent_task: Mapped[Task | None] = relationship(remote_side=[id])
 
     __table_args__ = (
         Index("ix_tasks_agent_state", "agent_id", "state"),
+        Index("ix_tasks_reply_to_agent", "reply_to_agent_id"),
+        Index("ix_tasks_completion_correlation", "completion_correlation_id"),
         Index("ix_tasks_scheduler_hot", "state", "priority", "created_at"),
     )
 

@@ -5,10 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 from mycelium.agents.base import AgentResult, BaseAgent
+from mycelium.agents.builtin._llm_step import run_llm_step
 
 
 class ResearcherAgent(BaseAgent):
-    """Future agent that gathers and stores external findings."""
+    """Draft findings from a task payload using the configured LLM."""
 
     async def run_step(self, payload: dict[str, Any]) -> AgentResult:
-        return AgentResult(data={"planned": "researcher", "payload": payload})
+        return await run_llm_step(
+            self,
+            payload,
+            role="researcher",
+            instruction="Research the task and return concise findings with cited assumptions.",
+        )
