@@ -2,8 +2,12 @@ name: ci
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   python:
@@ -38,6 +42,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --locked --dev
+      - run: bash scripts/check-repository-policy.sh
       - run: uv run ruff check .
       - run: ./scripts/mypy_check.sh
       - run: uv run alembic upgrade head

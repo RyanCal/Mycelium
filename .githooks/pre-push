@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Local feedback only. CI and authoritative controller state own merge eligibility.
+set -uo pipefail
+
+refs="$(cat)"
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    bash scripts/check-repository-policy.sh || exit $?
+    uv run ruff check . || exit $?
+    ./scripts/mypy_check.sh || exit $?
+    uv run pytest || exit $?
+    (cd ui && npm ci && npm run lint && npm run type-check && npm run build) || exit $?
+    exit 0
+  fi
+done <<< "$refs"
+
+exit 0

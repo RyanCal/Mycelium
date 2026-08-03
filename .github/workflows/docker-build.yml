@@ -1,12 +1,13 @@
 name: docker-build
 
+# Mycelium is on hold. Keep the release workflow visible but inert until an exact task re-enables
+# publication with deployment verification and rollback.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 jobs:
   docker:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

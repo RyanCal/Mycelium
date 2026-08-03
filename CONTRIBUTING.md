@@ -24,8 +24,9 @@ npm run dev
 
 ## Branches And Pull Requests
 
-Use focused branches with one of these prefixes: `feat/<short>`,
-`fix/<short>`, `chore/<short>`, or `docs/<short>`.
+Claim an exact task before writing and use `<type>/<bead-id>-<slug>`. Beads is not initialized
+yet, so do not start new implementation work until task tracking and its hooks are migrated.
+`chore/homelab-fb2-delivery-policy` is the one policy-migration exception.
 
 Open a PR for every change and avoid direct pushes to `main`. PR titles should
 follow Conventional Commits, such as `feat: add agent catalog` or
@@ -44,7 +45,10 @@ uv run pytest
 cd ui && npm run lint && npm run type-check && npm run build
 ```
 
-The protected `main` branch requires the Python and UI checks to pass. Solo
-development does not require review approval, but CI must stay green.
+The protected `main` branch requires the Python and UI checks to pass. Tiny localized work needs
+deterministic checks and running smoke evidence. Substantial work needs independent exact-head
+review. Protected auth/data/migration/sandbox/secret/workflow/deploy changes stop for owner or
+specialist authorization after full review. CI must stay green; PR comments are informational and
+do not authorize merge.
 
 Large architecture changes should add or update an ADR in `docs/adr/`.
