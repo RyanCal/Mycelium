@@ -19,3 +19,7 @@ out/
 *.tsbuildinfo
 coverage/
 *.log
+
+# repomix digest output: inlines the whole repo, so it duplicates any
+# credential into a second tracked file on every weekly run. Kept locally only.
+REPOMIX_OUTPUT.md
