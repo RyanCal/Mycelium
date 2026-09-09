@@ -19,3 +19,9 @@ out/
 *.tsbuildinfo
 coverage/
 *.log
+
+# repomix dumps: inline the whole repo, so they duplicate anything sensitive
+# into a tracked file. This remote is public. Kept locally only.
+REPOMIX_OUTPUT.md
+repomix-output.xml
+repomix-output.md
