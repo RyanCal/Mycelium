@@ -1,5 +1,12 @@
 # ADR 0005: Branching And Commits
 
+## Current delivery policy (30 September 2026)
+
+Finished software merges immediately. CI and reviews are advisory. No earlier tier, protected-path rule or owner code review holds a merge. Record intent, affected behavior, actual verification or its absence, likely breaking points and exact recovery. Verify the changed running flow after delivery and repair or roll back failures. New spending, destructive live-data operations and unrelated scope retain separate authority. Read the current global contract and published base-branch instructions when working from an older branch. Policy and recovery: [homelab delivery runbook](https://github.com/RyanCal/homelab/blob/main/runbooks/merge-guard.md).
+
+Older merge/check requirements below are historical and superseded. Existing product constraints and intentional project parks remain in effect.
+
+
 Status: Accepted
 
 ## Context

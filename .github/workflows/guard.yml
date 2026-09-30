@@ -1,0 +1,12 @@
+# Owner-approved immediate delivery. Policy: homelab/runbooks/merge-guard.md.
+name: merge-now
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  merge:
+    uses: ./.github/workflows/guard-reusable.yml

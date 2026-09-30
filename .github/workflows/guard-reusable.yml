@@ -1,0 +1,49 @@
+# Owner decision 2026-09-30: merge ready trusted PRs; recover after merge.
+# Read metadata only. Never execute PR code with this writable token.
+name: merge-now-reusable
+on:
+  workflow_call:
+jobs:
+  merge:
+    runs-on: verdict-gate
+    timeout-minutes: 2
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge the current ready head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          meta=$(gh api "repos/$REPO/pulls/$PR")
+          # Drafts, forks and untrusted authors have not entered the owner's delivery path.
+          eligible=$(jq -r --arg repo "$REPO" --arg sha "$EVENT_HEAD" '
+            .state == "open" and .draft == false and .head.sha == $sha
+            and .head.repo.full_name == $repo
+            and (.author_association == "OWNER" or .author_association == "MEMBER"
+              or .author_association == "COLLABORATOR" or .user.login == "dependabot[bot]")
+            ' <<< "$meta")
+          if [ "$eligible" != true ]; then
+            echo "Not a current ready trusted PR; no merge attempted."
+            exit 0
+          fi
+          base=$(jq -r '.base.ref' <<< "$meta")
+          tier=$(gh api "repos/$REPO/contents/.github/automerge-tier?ref=$base" --jq .content | base64 -d)
+          case "${tier//[[:space:]]/}" in
+            on|reviewed) ;;
+            *) echo "Immediate merging is switched off on $base."; exit 0 ;;
+          esac
+          if [ "$(jq -r '.mergeable' <<< "$meta")" = false ]; then
+            echo "The owning agent must resolve the merge conflict and push again."
+            exit 0
+          fi
+          # GitHub rejects a changed head. No check/review wait, admin bypass or code checkout.
+          result=$(jq -n --arg sha "$EVENT_HEAD" '{sha:$sha,merge_method:"squash"}' |
+            gh api --method PUT "repos/$REPO/pulls/$PR/merge" --input -)
+          jq -e '.merged == true' <<< "$result" >/dev/null
+          echo "Merged #$PR at $(jq -r '.sha' <<< "$result")."
